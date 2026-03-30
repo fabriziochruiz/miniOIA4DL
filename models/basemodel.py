@@ -4,18 +4,25 @@ import numpy as np
 class BaseModel:
     def __init__(self, layers):
         self.layers = layers
+        self.last_fw_profile = []
     
     def get_model(self):
         return self.layers
 
     def forward(self, x, curr_iter=1,training=False):
         imgs=x.shape[0]
+        self.last_fw_profile = []
         if curr_iter == 0:
             print("FW Layer;Batch;Time(s);Performance(imgs/s)")
-        for layer in self.layers:
+        for layer_idx, layer in enumerate(self.layers):
             layer_start_time = time.time()
             x = layer.forward(x)
             layer_time = time.time() - layer_start_time
+            self.last_fw_profile.append({
+                'layer_idx': layer_idx,
+                'layer_name': layer.__class__.__name__,
+                'time_s': float(layer_time),
+            })
             if curr_iter == 0:
                 # Calculate performance metrics
                 images_per_second = imgs / layer_time

@@ -8,7 +8,7 @@ from eval import evaluate
 from performance import perf
 from data.cifar100_augmentator import CIFAR100Augmentor
 
-def main(model_name, batch_size, epochs, learning_rate, conv_algo, performance, eval_only):
+def main(model_name, batch_size, epochs, learning_rate, conv_algo, performance, eval_only, run_label=None):
     # !!Asegurarse de la ruta del dataset
     (train_images, train_labels), (test_images, test_labels) = load_cifar100(data_dir='./data/cifar-100-python')
 
@@ -27,6 +27,9 @@ def main(model_name, batch_size, epochs, learning_rate, conv_algo, performance, 
         model = OIANET_CIFAR100(conv_algo=conv_algo)
     else:
         model = ResNet18_CIFAR100(conv_algo=conv_algo)
+
+    model.conv_algo = conv_algo
+    model.run_label = run_label
 
     # Solamente se va a utilizar esta función para medir el rendimiento
     if performance:
@@ -51,6 +54,7 @@ if __name__ == '__main__':
     parser.add_argument('--performance', action='store_true', help='Enable performance measurement')
     parser.add_argument('--eval_only', action='store_true', help='Enable evaluation-only mode')
     parser.add_argument('--conv_algo', type=int, default=0, choices=[0,1,2], help='Conv2d algorithm 0-direct, 1-im2col, 2-im2colfused (default: 0)')
+    parser.add_argument('--run_label', type=str, default=None, help='Optional label for performance chart bar (e.g., BASE, I2C, GotoGEMM)')
     
     args = parser.parse_args()
     
@@ -60,6 +64,7 @@ if __name__ == '__main__':
     learning_rate = args.learning_rate
     performance = True # FOR OIANET performance
     conv_algo = args.conv_algo # PISTA: esto sirve para seleccionar nuevos algoritmos de convolucion
+    run_label = args.run_label
     eval_only = False # FOR OIANET performance
     
-    main(model_name, batch_size, epochs, learning_rate, conv_algo, performance, eval_only)
+    main(model_name, batch_size, epochs, learning_rate, conv_algo, performance, eval_only, run_label=run_label)

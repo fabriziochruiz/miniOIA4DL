@@ -3,6 +3,7 @@ from modules.utils import *
 #from cython_modules.im2col import im2col_forward_cython
 
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 
 class Conv2D(Layer):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, conv_algo=0, weight_init="he"):
@@ -11,13 +12,19 @@ class Conv2D(Layer):
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
+        self.conv_algo = conv_algo
         
         # MODIFICAR: Añadir nuevo if-else para otros algoritmos de convolución
         if conv_algo == 0:
-            self.mode = 'direct' 
+            self.mode = 'direct'
+        elif conv_algo == 1:
+            self.mode = 'im2col'
+        elif conv_algo == 2:
+            print("Algoritmo 2 (im2col fused) no implementado aun, usando modo direct")
+            self.mode = 'direct'
         else:
-            print(f"Algoritmo {conv_algo} no soportado aún")
-            self.mode = 'direct' 
+            print(f"Algoritmo {conv_algo} no soportado, usando modo direct")
+            self.mode = 'direct'
 
         fan_in = in_channels * kernel_size * kernel_size
         fan_out = out_channels * kernel_size * kernel_size
@@ -60,15 +67,16 @@ class Conv2D(Layer):
         # PISTA: Usar estos if-else si implementas más algoritmos de convolución
         if self.mode == 'direct':
             return self._forward_direct(input)
-        else:
-            raise ValueError("Mode must be 'direct")
-
-    def backward(self, grad_output, learning_rate):
-        # ESTO NO ES NECESARIO YA QUE NO VAIS A HACER BACKPROPAGATION
-        if self.mode == 'direct':
-            return self._backward_direct(grad_output, learning_rate)
+        elif self.mode == 'im2col':
+            return self._forward_im2col(input)
         else:
             raise ValueError("Mode must be 'direct' or 'im2col'")
+
+    def backward(self, grad_output, learning_rate):
+        # Para mantener compatibilidad con entrenamiento, reutilizamos backward directo.
+        if self.mode in ('direct', 'im2col'):
+            return self._backward_direct(grad_output, learning_rate)
+        raise ValueError("Mode must be 'direct' or 'im2col'")
 
     # --- DIRECT IMPLEMENTATION ---
 
@@ -97,6 +105,37 @@ class Conv2D(Layer):
                 output[b, out_c] += self.biases[out_c]
 
         return output
+
+    # --- IM2COL IMPLEMENTATIONS ---
+
+    def _extract_patches_as_matrix(self, input):
+        if self.padding > 0:
+            input = np.pad(input,
+                           ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)),
+                           mode='constant').astype(np.float32)
+        else:
+            input = input.astype(np.float32, copy=False)
+
+        k_h, k_w = self.kernel_size, self.kernel_size
+        windows = sliding_window_view(input, (k_h, k_w), axis=(2, 3))
+        windows = windows[:, :, ::self.stride, ::self.stride, :, :]
+
+        batch_size = input.shape[0]
+        out_h = windows.shape[2]
+        out_w = windows.shape[3]
+
+        patches = windows.transpose(0, 2, 3, 1, 4, 5).reshape(batch_size * out_h * out_w, -1)
+        return patches, batch_size, out_h, out_w
+
+    def _forward_im2col(self, input):
+        patches, batch_size, out_h, out_w = self._extract_patches_as_matrix(input)
+
+        kernels_2d = self.kernels.reshape(self.out_channels, -1).T
+        output_2d = patches @ kernels_2d
+        output_2d += self.biases
+
+        output = output_2d.reshape(batch_size, out_h, out_w, self.out_channels).transpose(0, 3, 1, 2)
+        return output.astype(np.float32, copy=False)
 
     def _backward_direct(self, grad_output, learning_rate):
         batch_size, _, out_h, out_w = grad_output.shape
@@ -137,3 +176,7 @@ class Conv2D(Layer):
         return grad_input
 
     # PISTA: Se te ocurren otros algoritmos de convolución?
+
+
+
+    
