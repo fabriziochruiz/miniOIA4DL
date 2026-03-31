@@ -15,18 +15,19 @@ class BaseModel:
         if curr_iter == 0:
             print("FW Layer;Batch;Time(s);Performance(imgs/s)")
         for layer_idx, layer in enumerate(self.layers):
-            layer_start_time = time.time()
+            layer_start_time = time.perf_counter()
             x = layer.forward(x)
-            layer_time = time.time() - layer_start_time
+            layer_time = time.perf_counter() - layer_start_time
+            safe_layer_time = max(layer_time, 1e-10)
             self.last_fw_profile.append({
                 'layer_idx': layer_idx,
                 'layer_name': layer.__class__.__name__,
-                'time_s': float(layer_time),
+                'time_s': float(safe_layer_time),
             })
             if curr_iter == 0:
                 # Calculate performance metrics
-                images_per_second = imgs / layer_time
-                print(f"{layer.__class__.__name__};{imgs};{layer_time:.4f};{images_per_second:.2f}")
+                images_per_second = imgs / safe_layer_time
+                print(f"{layer.__class__.__name__};{imgs};{safe_layer_time:.10f};{images_per_second:.2f}")
         if curr_iter == 0:
             print("==========================================")
         
@@ -37,14 +38,13 @@ class BaseModel:
         if curr_iter == 0:
             print("BW Layer;Batch;Time(s);Performance(imgs/s)")
         for layer in reversed(self.layers):
-            layer_start_time = time.time()
+            layer_start_time = time.perf_counter()
             grad_output = layer.backward(grad_output, learning_rate)
-            layer_time = time.time() - layer_start_time
+            layer_time = time.perf_counter() - layer_start_time
+            safe_layer_time = max(layer_time, 1e-10)
             if curr_iter == 0:
-                if layer_time == 0.0:
-                    layer_time = 1e-10
-                images_per_second =  imgs/ layer_time
-                print(f"{layer.__class__.__name__};{imgs};{layer_time:.4f};{images_per_second:.2f}")
+                images_per_second =  imgs / safe_layer_time
+                print(f"{layer.__class__.__name__};{imgs};{safe_layer_time:.10f};{images_per_second:.2f}")
         if curr_iter == 0:
             print("==========================================")
         return grad_output
