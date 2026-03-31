@@ -109,6 +109,8 @@ class Conv2D(Layer):
     # --- IM2COL IMPLEMENTATIONS ---
 
     def _extract_patches_as_matrix(self, input):
+        # --- INICIO BLOQUE GENERADO CON IA ---
+        # im2col con vistas por stride y layout contiguo para mejorar acceso a memoria en GEMM.
         if self.padding > 0:
             input = np.pad(input,
                            ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)),
@@ -125,19 +127,46 @@ class Conv2D(Layer):
         out_w = windows.shape[3]
 
         patches = windows.transpose(0, 2, 3, 1, 4, 5).reshape(batch_size * out_h * out_w, -1)
+        patches = np.ascontiguousarray(patches, dtype=np.float32)
+
+        # Codigo anterior: Los 3 bucles anidados son lentos.
+        # if self.padding > 0:
+        #     input = np.pad(input,
+        #                    ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)),
+        #                    mode='constant').astype(np.float32)
+        # else:
+        #     input = input.astype(np.float32, copy=False)
+        # k_h, k_w = self.kernel_size, self.kernel_size
+        # windows = sliding_window_view(input, (k_h, k_w), axis=(2, 3))
+        # windows = windows[:, :, ::self.stride, ::self.stride, :, :]
+        # batch_size = input.shape[0]
+        # out_h = windows.shape[2]
+        # out_w = windows.shape[3]
+        # patches = windows.transpose(0, 2, 3, 1, 4, 5).reshape(batch_size * out_h * out_w, -1)
+        # --- FIN BLOQUE GENERADO CON IA ---
         return patches, batch_size, out_h, out_w
 
     def _forward_im2col(self, input):
+        # --- INICIO BLOQUE GENERADO CON IA ---
+        # Convolucion como GEMM: im2col(X) @ W + b.
         patches, batch_size, out_h, out_w = self._extract_patches_as_matrix(input)
-
-        kernels_2d = self.kernels.reshape(self.out_channels, -1).T
+        kernels_2d = np.ascontiguousarray(self.kernels.reshape(self.out_channels, -1).T, dtype=np.float32)
         output_2d = patches @ kernels_2d
         output_2d += self.biases
-
         output = output_2d.reshape(batch_size, out_h, out_w, self.out_channels).transpose(0, 3, 1, 2)
+
+        # Codigo anterior: Los 3 bucles anidados son lentos.
+        # patches, batch_size, out_h, out_w = self._extract_patches_as_matrix(input)
+        # kernels_2d = self.kernels.reshape(self.out_channels, -1).T
+        # output_2d = patches @ kernels_2d
+        # output_2d += self.biases
+        # output = output_2d.reshape(batch_size, out_h, out_w, self.out_channels).transpose(0, 3, 1, 2)
+        # --- FIN BLOQUE GENERADO CON IA ---
         return output.astype(np.float32, copy=False)
 
     def _backward_direct(self, grad_output, learning_rate):
+        # --- INICIO BLOQUE GENERADO CON IA ---
+        # Retropropagacion con reordenacion de bucles para mejor localidad de cache en nivel basico.
         batch_size, _, out_h, out_w = grad_output.shape
         _, _, in_h, in_w = self.input.shape
         k_h, k_w = self.kernel_size, self.kernel_size
@@ -147,23 +176,36 @@ class Conv2D(Layer):
                                   ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)),
                                   mode='constant').astype(np.float32)
         else:
-            input_padded = self.input
+            input_padded = self.input.astype(np.float32, copy=False)
 
         grad_input_padded = np.zeros_like(input_padded, dtype=np.float32)
         grad_kernels = np.zeros_like(self.kernels, dtype=np.float32)
-        grad_biases = np.zeros_like(self.biases, dtype=np.float32)
+        grad_biases = np.sum(grad_output, axis=(0, 2, 3), keepdims=False)
 
         for b in range(batch_size):
-            for out_c in range(self.out_channels):
-                for in_c in range(self.in_channels):
-                    for i in range(out_h):
-                        for j in range(out_w):
-                            r = i * self.stride
-                            c = j * self.stride
+            for i in range(out_h):
+                for j in range(out_w):
+                    r = i * self.stride
+                    c = j * self.stride
+                    for out_c in range(self.out_channels):
+                        for in_c in range(self.in_channels):
                             region = input_padded[b, in_c, r:r + k_h, c:c + k_w]
                             grad_kernels[out_c, in_c] += grad_output[b, out_c, i, j] * region
                             grad_input_padded[b, in_c, r:r + k_h, c:c + k_w] += self.kernels[out_c, in_c] * grad_output[b, out_c, i, j]
-                grad_biases[out_c] += np.sum(grad_output[b, out_c])
+
+        # Codigo anterior: Los 5 bucles anidados con peor localidad de cache.
+        # for b in range(batch_size):
+        #     for out_c in range(self.out_channels):
+        #         for in_c in range(self.in_channels):
+        #             for i in range(out_h):
+        #                 for j in range(out_w):
+        #                     r = i * self.stride
+        #                     c = j * self.stride
+        #                     region = input_padded[b, in_c, r:r + k_h, c:c + k_w]
+        #                     grad_kernels[out_c, in_c] += grad_output[b, out_c, i, j] * region
+        #                     grad_input_padded[b, in_c, r:r + k_h, c:c + k_w] += self.kernels[out_c, in_c] * grad_output[b, out_c, i, j]
+        #             grad_biases[out_c] += np.sum(grad_output[b, out_c])
+        # --- FIN BLOQUE GENERADO CON IA ---
 
         if self.padding > 0:
             grad_input = grad_input_padded[:, :, self.padding:-self.padding, self.padding:-self.padding]

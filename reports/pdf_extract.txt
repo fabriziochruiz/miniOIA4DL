@@ -1,0 +1,58 @@
+===FILE=== C:\Users\Gordus\Downloads\convoluciones.pdf
+PAGES 17
+---PAGE 1---
+Convolutions!! Optimización de entornos software para Inteligencia Artificial 2025-2026 Adrián Castelló
+---PAGE 2---
+Convolution 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 0 1 -2 3 -4 5 6 7 -8 https://www.youtube.com/watch?v=eMXuk97NeSI
+---PAGE 3---
+Convolution Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5
+---PAGE 4---
+Convolution 9 Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 0 x 0 + 1 x 1 + 2 x -2 + 1 x 3 + 2 x -4 + 2 x 5 0 x 6 + 1 x 7 + 0 x -8 = 9 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5
+---PAGE 5---
+Convolution 9 Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 1 x 0 + 2 x 1 + 3 x -2 + 2 x 3 + 2 x -4 + 2 x 5 1 x 6 + 0 x 7 + 1 x -8 = 2 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5 2
+---PAGE 6---
+Convolution 9 Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 2 x 0 + 3 x 1 + 2 x -2 + 2 x 3 + 2 x -4 + 0 x 5 0 x 6 + 1 x 7 + 3 x -8 = -20 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5 2 -20
+---PAGE 7---
+Convolution via Direct Algorithm 39 ms Base •Many nested loops •Poor cache locality •No vectorization •Low arithmetic intensity
+---PAGE 8---
+Convolution via Direct Algorithm 2.8 ms Kernel Reuse •Better data reuse •Improved cache line utilization •Fewer memory misses
+---PAGE 9---
+Convolution via Direct Algorithm 2.3 ms Vectorization •SIMD Vectorization •Fewer interpreter overheads (C) •Optimized memory traversal
+---PAGE 10---
+Convolution via Im2col + GEMM Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5 0 1 2 1 2 2 0 1 0 0 1 -2 3 -4 5 6 7 -8
+---PAGE 11---
+Convolution via Im2col + GEMM Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5 0 1 2 1 2 2 0 1 0 1 2 3 2 2 2 1 0 1 0 1 -2 3 -4 5 6 7 -8 0 1 -2 3 -4 5 6 7 -8
+---PAGE 12---
+Convolution via Im2col + GEMM Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 0 1 -2 3 -4 5 6 7 -8 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5 0 1 2 1 2 2 0 1 0 1 2 3 2 2 2 1 0 1 2 3 2 2 2 0 0 1 3 0 1 -2 3 -4 5 6 7 -8 0 1 -2 3 -4 5 6 7 -8
+---PAGE 13---
+Convolution via Im2col + GEMM Filter 3 x 3 0 0 0 0 0 0 0 0 0 1 2 3 2 0 0 1 2 2 2 0 0 0 0 1 0 1 3 0 0 1 2 2 1 0 0 0 0 1 0 3 1 0 0 0 0 0 0 0 0 0 1 -2 3 -4 5 6 7 -8 0 1 -2 3 -4 5 6 7 -8 Input 5 x 5 0 1 2 1 2 2 0 1 0 1 2 3 2 2 2 1 0 1 2 3 2 2 2 0 0 1 3 0 1 -2 3 -4 5 6 7 -8 0 1 -2 3 -4 5 6 7 -8 4 9 -20
+---PAGE 14---
+Convolution via Im2col + GEMM 1.9 ms •Cache blocking •SIMD •Register tiling •Multithreading
+---PAGE 15---
+Convolution via other algorithms • Winograd algorithm • Reduced number of multiplications • Kernels 3x3 • Less accuracy • FFT convolutions • Only when kernels are large (15x15, 25x25…) • HPC approaches • Input tiling • Most HPC GEMM algorithms
+---PAGE 16---
+Convolution algorithms summary 1. Naive loops (slowest) 2. Loop reordered 3. Vectorized NumPy 4. im2col + GEMM 5. Winograd 6. FFT (large kernels) 7. Highly tuned kernels (fastest)
+---PAGE 17---
+Questions?
+===FILE=== C:\Users\Gordus\Downloads\densas.pdf
+PAGES 10
+---PAGE 1---
+Fully Connected!! Optimización de entornos software para Inteligencia Artificial 2025-2026 Adrián Castelló
+---PAGE 2---
+Fully connected S3_optimización_inferencia.pdf
+---PAGE 3---
+• Un ejemplo (m, n, k) = (3, 3, 3) • C[0,0]: 1 2 3 4 5 6 7 8 9 0 1 -1 0 -1 0 1 0 1 3 -1 2 6 -1 2 9 -1 2 x= C + = A * B C → m x n A → m x k B → k x n C00 = A00 B00 + A01 B10 + A02 B20 S3_optimización_inferencia.pdf Fully connected
+---PAGE 4---
+• Un ejemplo (m, n, k) = (3, 3, 3) • C[1,2]: 1 2 3 4 5 6 7 8 9 0 1 -1 0 -1 0 1 0 1 3 -1 2 6 -1 2 9 -1 2 x= C + = A * B C → m x n A → m x k B → k x n C12 = A10 B02 + A11 B12 + A12 B22 S3_optimización_inferencia.pdf Fully connected
+---PAGE 5---
+A = np.random.rand(m, k) B = np.random.rand(k, n) C = np.zeros([m,n]) # C = A @ B mediante bucles for i in range(m): # Bucle L1 for j in range(n): # Bucle L2 for p in range(k): # Bucle L3 C[i,j] += A[i,p] * B[p,j] 1 2 3 4 5 6 7 8 9 A BC x= i j k k j i C + = A * B C → m x n A → m x k B → k x n Fully connected
+---PAGE 6---
+GEMM 33 ms Base •3 nested loops •Poor cache locality •No SIMD •No parallelism
+---PAGE 7---
+GEMM 2.5 ms •3 nested loops •Better temporal locality •Fewer memory reloads •Improved cache usage
+---PAGE 8---
+GEMM 1.5 ms •Optimized memory access •SIMD •Multithreading •Include bias add
+---PAGE 9---
+GEMM algorithms summary 1. Naive loops 2. Loop reordered 3. NumPy (BLAS) 4. Blocked GEMM 5. Register-tiled microkernel 6. Quantized / Sparse / Specialized kernels
+---PAGE 10---
+Questions?

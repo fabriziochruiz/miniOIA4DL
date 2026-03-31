@@ -16,7 +16,7 @@ class BaseModel:
             print("FW Layer;Batch;Time(s);Performance(imgs/s)")
         for layer_idx, layer in enumerate(self.layers):
             layer_start_time = time.perf_counter()
-            x = layer.forward(x)
+            x = layer.forward(x, training=training)
             layer_time = time.perf_counter() - layer_start_time
             safe_layer_time = max(layer_time, 1e-10)
             self.last_fw_profile.append({

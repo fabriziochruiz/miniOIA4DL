@@ -27,11 +27,12 @@ class Dense(Layer):
         # Optimizacion basica: usar operaciones vectorizadas de NumPy
         
         # --- INICIO BLOQUE GENERADO CON IA ---
+        # GEMM vectorizado con NumPy (BLAS): salida = X @ W + b.
         self.input = np.asarray(input, dtype=np.float32)
         output = self.input @ self.weights + self.biases
         # --- FIN BLOQUE GENERADO CON IA ---
         
-        # Version anterior (mas lenta):
+        # Codigo anterior: Los 3 bucles anidados son lentos.
         # batch_size = self.input.shape[0]
         # output = np.zeros((batch_size, self.out_features), dtype=np.float32)
         # output = matmul_biasses(self.input, self.weights, output, self.biases)
@@ -45,25 +46,27 @@ class Dense(Layer):
         # Ya que los 3 bucles anidados son muy costosos, por eso se usa la vectorizacion.
 
         # --- INICIO BLOQUE GENERADO CON IA ---
+        # GEMM para gradiente de pesos: dW = X^T @ dY.
         grad_weights = self.input.T @ grad_output
         # --- FIN BLOQUE GENERADO CON IA ---
 
-        # Version anterior (mas lenta): gradientes con 3 bucles anidados.
+        # Codigo anterior: Los 3 bucles anidados son lentos.
         #for i in range(self.in_features):
         #    for j in range(self.out_features):
         #        for b in range(batch_size):
         #            grad_weights[i][j] += self.input[b][i] * grad_output[b][j]
         
         # --- INICIO BLOQUE GENERADO CON IA ---
+        # GEMM para gradiente de entrada y reduccion vectorizada para bias.
         grad_biases = np.sum(grad_output, axis=0)
         grad_input = grad_output @ self.weights.T
         # --- FIN BLOQUE GENERADO CON IA ---
 
-        # Version anterior (mas lenta): gradientes con 3 bucles anidados.
+        # Codigo anterior: Los 3 bucles anidados son lentos.
         #for b in range(batch_size):
         #    for i in range(self.in_features):
         #        for j in range(self.out_features):
-        #            grad_input[b][i] += grad_output[b][j] * self.weights[i][j
+        #            grad_input[b][i] += grad_output[b][j] * self.weights[i][j]
         
         # Update weights and biases
         self.weights -= learning_rate * grad_weights
