@@ -166,7 +166,8 @@ class Conv2D(Layer):
         return output.astype(np.float32, copy=False)
 
     def _forward_im2col_fused(self, input):
-        # im2col fused por bloques: evita materializar toda la matriz de parches.
+        # --- INICIO BLOQUE GENERADO CON IA ---
+        # Cache blocking + GEMM por bloques (mc, kc, nc) sin materializar la im2col completa.
         if self.padding > 0:
             input = np.pad(input,
                            ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)),
@@ -186,30 +187,41 @@ class Conv2D(Layer):
         k_total = self.in_channels * k_h * k_w
         n_total = self.out_channels
 
-        flat_windows = windows.transpose(0, 2, 3, 1, 4, 5).reshape(m_total, k_total)
         kernels_2d = np.ascontiguousarray(self.kernels.reshape(self.out_channels, -1).T, dtype=np.float32)
         output_2d = np.zeros((m_total, n_total), dtype=np.float32)
 
+        hw = out_h * out_w
         for m0 in range(0, m_total, self.mc):
             m1 = min(m0 + self.mc, m_total)
             m_len = m1 - m0
 
+            idx = np.arange(m0, m1, dtype=np.int64)
+            b_idx = idx // hw
+            rem = idx % hw
+            h_idx = rem // out_w
+            w_idx = rem % out_w
+            patches_block = windows[b_idx, :, h_idx, w_idx, :, :].reshape(m_len, k_total)
+
             for n0 in range(0, n_total, self.nc):
                 n1 = min(n0 + self.nc, n_total)
                 n_len = n1 - n0
-
                 c_block = output_2d[m0:m1, n0:n1]
 
                 for k0 in range(0, k_total, self.kc):
                     k1 = min(k0 + self.kc, k_total)
                     k_len = k1 - k0
 
-                    self.Ac[:m_len, :k_len] = flat_windows[m0:m1, k0:k1]
+                    self.Ac[:m_len, :k_len] = patches_block[:, k0:k1]
                     self.Bc[:k_len, :n_len] = kernels_2d[k0:k1, n0:n1]
                     c_block += self.Ac[:m_len, :k_len] @ self.Bc[:k_len, :n_len]
 
         output_2d += self.biases
         output = output_2d.reshape(batch_size, out_h, out_w, self.out_channels).transpose(0, 3, 1, 2)
+
+        # Codigo anterior: materializaba flat_windows completo antes del blocking.
+        # flat_windows = windows.transpose(0, 2, 3, 1, 4, 5).reshape(m_total, k_total)
+        # self.Ac[:m_len, :k_len] = flat_windows[m0:m1, k0:k1]
+        # --- FIN BLOQUE GENERADO CON IA ---
         return output.astype(np.float32, copy=False)
 
     def _backward_direct(self, grad_output, learning_rate):
