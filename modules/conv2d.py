@@ -20,8 +20,7 @@ class Conv2D(Layer):
         elif conv_algo == 1:
             self.mode = 'im2col'
         elif conv_algo == 2:
-            print("Algoritmo 2 (im2col fused) no implementado aun, usando modo direct")
-            self.mode = 'direct'
+            self.mode = 'im2col_fused'
         else:
             print(f"Algoritmo {conv_algo} no soportado, usando modo direct")
             self.mode = 'direct'
@@ -69,14 +68,16 @@ class Conv2D(Layer):
             return self._forward_direct(input)
         elif self.mode == 'im2col':
             return self._forward_im2col(input)
+        elif self.mode == 'im2col_fused':
+            return self._forward_im2col_fused(input)
         else:
-            raise ValueError("Mode must be 'direct' or 'im2col'")
+            raise ValueError("Mode must be 'direct', 'im2col' or 'im2col_fused'")
 
     def backward(self, grad_output, learning_rate):
         # Para mantener compatibilidad con entrenamiento, reutilizamos backward directo.
-        if self.mode in ('direct', 'im2col'):
+        if self.mode in ('direct', 'im2col', 'im2col_fused'):
             return self._backward_direct(grad_output, learning_rate)
-        raise ValueError("Mode must be 'direct' or 'im2col'")
+        raise ValueError("Mode must be 'direct', 'im2col' or 'im2col_fused'")
 
     # --- DIRECT IMPLEMENTATION ---
 
@@ -162,6 +163,53 @@ class Conv2D(Layer):
         # output_2d += self.biases
         # output = output_2d.reshape(batch_size, out_h, out_w, self.out_channels).transpose(0, 3, 1, 2)
         # --- FIN BLOQUE GENERADO CON IA ---
+        return output.astype(np.float32, copy=False)
+
+    def _forward_im2col_fused(self, input):
+        # im2col fused por bloques: evita materializar toda la matriz de parches.
+        if self.padding > 0:
+            input = np.pad(input,
+                           ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)),
+                           mode='constant').astype(np.float32)
+        else:
+            input = input.astype(np.float32, copy=False)
+
+        k_h, k_w = self.kernel_size, self.kernel_size
+        windows = sliding_window_view(input, (k_h, k_w), axis=(2, 3))
+        windows = windows[:, :, ::self.stride, ::self.stride, :, :]
+
+        batch_size = input.shape[0]
+        out_h = windows.shape[2]
+        out_w = windows.shape[3]
+
+        m_total = batch_size * out_h * out_w
+        k_total = self.in_channels * k_h * k_w
+        n_total = self.out_channels
+
+        flat_windows = windows.transpose(0, 2, 3, 1, 4, 5).reshape(m_total, k_total)
+        kernels_2d = np.ascontiguousarray(self.kernels.reshape(self.out_channels, -1).T, dtype=np.float32)
+        output_2d = np.zeros((m_total, n_total), dtype=np.float32)
+
+        for m0 in range(0, m_total, self.mc):
+            m1 = min(m0 + self.mc, m_total)
+            m_len = m1 - m0
+
+            for n0 in range(0, n_total, self.nc):
+                n1 = min(n0 + self.nc, n_total)
+                n_len = n1 - n0
+
+                c_block = output_2d[m0:m1, n0:n1]
+
+                for k0 in range(0, k_total, self.kc):
+                    k1 = min(k0 + self.kc, k_total)
+                    k_len = k1 - k0
+
+                    self.Ac[:m_len, :k_len] = flat_windows[m0:m1, k0:k1]
+                    self.Bc[:k_len, :n_len] = kernels_2d[k0:k1, n0:n1]
+                    c_block += self.Ac[:m_len, :k_len] @ self.Bc[:k_len, :n_len]
+
+        output_2d += self.biases
+        output = output_2d.reshape(batch_size, out_h, out_w, self.out_channels).transpose(0, 3, 1, 2)
         return output.astype(np.float32, copy=False)
 
     def _backward_direct(self, grad_output, learning_rate):

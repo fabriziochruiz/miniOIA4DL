@@ -1,2 +1,3 @@
 data/cifar-100-python/
+cython_modules/optimizations.c
 git
