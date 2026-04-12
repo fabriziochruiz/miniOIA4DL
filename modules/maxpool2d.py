@@ -1,6 +1,18 @@
 from modules.layer import Layer
 #from cython_modules.maxpool2d import maxpool_forward_cython
 import numpy as np
+import os
+import sys
+
+_CY_MAXPOOL = None
+try:
+    _CY_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'cython_modules'))
+    if _CY_DIR not in sys.path:
+        sys.path.append(_CY_DIR)
+    import optimizations as _cy_optimizations
+    _CY_MAXPOOL = _cy_optimizations.maxpool2d_cython
+except Exception:
+    _CY_MAXPOOL = None
 
 class MaxPool2D(Layer):
     def __init__(self, kernel_size, stride):
@@ -8,6 +20,32 @@ class MaxPool2D(Layer):
         self.stride = stride
 
     def forward(self, input, training=True):  # input: np.ndarray of shape [B, C, H, W]
+        if _CY_MAXPOOL is not None:
+            self.input = np.asarray(input)
+            cy_in = np.ascontiguousarray(self.input, dtype=np.float32)
+            output = _CY_MAXPOOL(cy_in, int(self.kernel_size), int(self.stride))
+
+            # Conservamos indices para backward con la misma logica actual.
+            B, C, H, W = self.input.shape
+            KH, KW = self.kernel_size, self.kernel_size
+            SH, SW = self.stride, self.stride
+            out_h = (H - KH) // SH + 1
+            out_w = (W - KW) // SW + 1
+
+            windows = np.lib.stride_tricks.sliding_window_view(self.input, (KH, KW), axis=(2, 3))
+            windows = windows[:, :, ::SH, ::SW, :, :]
+            flat_windows = windows.reshape(B, C, out_h, out_w, KH * KW)
+            max_pos = np.argmax(flat_windows, axis=-1)
+
+            local_r = max_pos // KW
+            local_s = max_pos % KW
+            base_r = (np.arange(out_h, dtype=np.int64) * SH).reshape(1, 1, out_h, 1)
+            base_s = (np.arange(out_w, dtype=np.int64) * SW).reshape(1, 1, 1, out_w)
+            global_r = base_r + local_r
+            global_s = base_s + local_s
+            self.max_indices = np.stack((global_r, global_s), axis=-1)
+            return output.astype(self.input.dtype, copy=False)
+
         # --- INICIO BLOQUE GENERADO CON IA ---
         # Vectorizacion con vistas por stride: calcula maximos e indices sin bucles por ventana.
         self.input = np.asarray(input)

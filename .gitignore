@@ -1,3 +1,13 @@
 data/cifar-100-python/
 cython_modules/optimizations.c
+cython_modules/build/
+cython_modules/*.pyd
+cython_modules/*.so
+__pycache__/
+*.py[cod]
+_tmp_clean_perf_csv.py
+reports/*copy.csv
+reports/*copy.png
+reports/performance_history_backup_full.csv
+reports/regenerar_grafica.txt
 git
